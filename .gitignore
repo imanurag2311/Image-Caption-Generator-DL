@@ -4,4 +4,6 @@ models/
 __pycache__/
 .vscode/
 runs/
+Ultralytics/
+*.log
 yolov8n.pt

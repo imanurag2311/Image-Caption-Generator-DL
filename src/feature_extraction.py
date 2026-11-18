@@ -43,7 +43,19 @@ def build_feature_extractor() -> Model:
     (batch, 299, 299, 3) and outputs a (batch, 2048) feature vector.
     """
     logger.info("Building InceptionV3 feature extractor…")
-    base = InceptionV3(weights="imagenet", include_top=False, pooling="avg")
+    
+    # Check for local cached weights first to support offline / sandboxed environments
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    local_weights = os.path.join(
+        project_root, "models", ".keras", "models",
+        "inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5"
+    )
+    if os.path.isfile(local_weights):
+        logger.info(f"Loading InceptionV3 weights from local cache: {local_weights}")
+        base = InceptionV3(weights=local_weights, include_top=False, pooling="avg")
+    else:
+        base = InceptionV3(weights="imagenet", include_top=False, pooling="avg")
+
     # pooling='avg' → GlobalAveragePooling2D → output shape (batch, 2048)
     model = Model(inputs=base.input, outputs=base.output)
     model.trainable = False  # Freeze all weights

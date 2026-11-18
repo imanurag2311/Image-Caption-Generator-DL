@@ -61,12 +61,23 @@ Total parameters: 9,170,776 (approximately 9.17 million).
 ```
 Image-Caption-Generator-DL/
 │
+├── backend/                 # Flask REST API server & config
+│   ├── __init__.py
+│   ├── config.py            # Environment-driven configuration
+│   └── server.py            # REST endpoints, model caching, inference
+│
 ├── data/
 │   └── Flickr8k/
 │       ├── Images/          # All 8,091 images
 │       └── captions.txt     # Caption annotations
 │
 ├── models/                  # Saved model weights and evaluation results
+│   ├── .keras/models/       # Cached InceptionV3 weights (offline ready)
+│   ├── .ultralytics/        # Cached Ultralytics settings (sandbox safe)
+│   ├── final_model.keras    # Trained CNN-LSTM captioning model
+│   ├── tokenizer.pkl        # Keras tokenizer (7,000 vocab)
+│   ├── max_length.pkl       # Max sequence length (35)
+│   └── evaluation_results.json
 │
 ├── src/
 │   ├── __init__.py
@@ -78,7 +89,11 @@ Image-Caption-Generator-DL/
 │   ├── evaluate.py          # BLEU and METEOR evaluation
 │   └── predict.py           # Greedy and beam search decoding
 │
-├── app.py                   # Streamlit web application
+├── app.py                   # Streamlit entry point (launches optimized frontend)
+├── frontend.py              # Modern Streamlit UI with API client, gallery & history
+├── app_standalone.py        # Legacy standalone Streamlit app (direct model loading)
+├── run_backend.py           # Backend server launcher
+├── test_api.py              # Automated API test suite
 ├── main.py                  # Command-line pipeline orchestrator
 ├── requirements.txt
 ├── .gitignore
@@ -173,13 +188,63 @@ python main.py --evaluate
 | `--beam-width` | 3 | Beam width for beam search |
 | `--max-images` | all | Limit evaluation to N images |
 
-**Launch the web application**
+**Running the Full Application (Backend + Frontend)**
 
+The system is organized into a dedicated Flask REST API backend and an optimized Streamlit frontend dashboard.
+
+**Step 1: Start the Backend API Server**
+
+In your first terminal:
+```bash
+python run_backend.py
+```
+This runs the Flask REST API at `http://localhost:5000`. It loads and caches InceptionV3, YOLOv8, and the CNN-LSTM model in memory for fast inference.
+
+*Optional configuration flags:*
+```bash
+python run_backend.py --port 5000 --host 0.0.0.0
+```
+
+**Step 2: Launch the Frontend Web Dashboard**
+
+In a second terminal:
 ```bash
 streamlit run app.py
 ```
+Open `http://localhost:8501` in your browser.
 
-Open http://localhost:8501 in your browser. Upload any image to generate a caption.
+*Frontend features:*
+- **📸 Caption Tab**: Upload any local JPG/PNG or paste an image URL. Choose between Greedy or Beam Search with adjustable beam width.
+- **🖼 Gallery Tab**: Browse sample images from Flickr8k and caption them with a single click, or try a random sample with `🎲 Try a Random Sample`.
+- **ℹ️ About Tab**: Live view of model metadata, parameters, vocabulary size, architecture details, and evaluation metrics.
+- **⚡ Status & History**: Real-time backend connection status badge, processing time tracking, caption copy button, and persistent session history.
+
+**Alternative: Standalone Mode (Without Backend)**
+If you want to run Streamlit loading the models directly without a separate backend server:
+```bash
+streamlit run app_standalone.py
+```
+
+**Step 3: Verification / Testing**
+
+To verify all backend endpoints, image captioning, and error handling without opening a browser:
+```bash
+python test_api.py
+```
+This runs a 23-test automated test suite verifying health checks, metadata, sample images, greedy search, beam search, and error handling.
+
+---
+
+### Backend API Endpoints
+
+| Method | Endpoint | Description | Parameters / Payload |
+|--------|----------|-------------|-----------------------|
+| `GET` | `/api/health` | Health check & model load status | None |
+| `GET` | `/api/model/info` | Architecture, vocab size, metrics | None |
+| `POST` | `/api/caption` | Caption uploaded image file | `multipart/form-data`: `image` (file), `method` (`greedy`/`beam`), `beam_width` (1-5) |
+| `POST` | `/api/caption/url` | Caption image from web URL | JSON: `{"url": "...", "method": "beam", "beam_width": 3}` |
+| `GET` | `/api/sample-images` | Get 12 random sample dataset filenames | None |
+| `GET` | `/api/sample-images/<filename>` | Serve a sample image file | Path parameter |
 
 ---
 

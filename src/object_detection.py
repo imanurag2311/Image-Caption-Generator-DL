@@ -160,11 +160,17 @@ def raw_vector_to_embedding(raw: np.ndarray) -> np.ndarray:
 def build_detector():
     """
     Load YOLOv8n model.
-    Auto-downloads yolov8n.pt (~6 MB) on first call.
+    Uses local yolov8n.pt in project root if available.
     """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    os.environ.setdefault("YOLO_CONFIG_DIR", os.path.join(project_root, "models", ".ultralytics"))
     from ultralytics import YOLO
     logger.info("Loading YOLOv8n model…")
-    model = YOLO("yolov8n.pt")
+    model_path = os.path.join(project_root, "yolov8n.pt")
+    if os.path.isfile(model_path):
+        model = YOLO(model_path)
+    else:
+        model = YOLO("yolov8n.pt")
     logger.info("YOLOv8n loaded.")
     return model
 
